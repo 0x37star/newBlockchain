@@ -129,14 +129,14 @@ class Blockchain {
                     bitcoinMessage.verify(message, address, signature, null, true);
                     // create a block
                     const newBlock = new BlockClass.Block({star:star, owner:address});
-                    const resolvedBlock = await this._addBlock(newBlock);
+                    const rBlock = await this._addBlock(newBlock);
                     // resolve with Block added
-                    resolve(resolvedBlock);
-                } catch (error) {
-                    console.log(error);
+                    resolve(rBlock);
+                } catch (err) {
+                    console.log(err);
                 } 
             } else {
-                reject("Error: problem with submission");
+                reject("Error");
             }
         });
     }
@@ -214,26 +214,30 @@ class Blockchain {
         let self = this;
         let errorLog = [];
         return new Promise(async (resolve, reject) => {
-            this.chain.forEach(async (block) => {
-                try {
-                    const previousBlockHash = this.chain[block.height-1];
-                    if (await block.validate()) {
-                    if(block.height !== 0) {
-                        if(block.hash !== previousBlockHash) {
-                            errorLog.push(new Error("Error: " + block + "is in the wrong place."));
-                        }
-                    } else {
-                        errorLog.push(new Error("Error: " + block + "isn't validated."));
-                    }
-                    }
-                } catch(e) {
-                    console.log(e);
+             // use a loop to check the blocks
+            for (let i = 0; i < this.chain.length; i++) {
+                //take the current block
+                const CurrentBlock = this.chain[i];
+                if ( !(await CurrentBlock.validate()) ) {
+                    errorLog.push({
+                        error: 'Failed validation',
+                        block: CurrentBlock
+                    });
                 }
-            });
+                // avoid the genesis block
+                if (i === 0) continue;
+                // compares current vs previous
+                const previousBlock = this.chain[i - 1];
+                if (CurrentBlock.previousBlockHash !== previousBlock.hash) {
+                    errorLog.push({
+                        error: 'Previous block hash doesn\'t match',
+                        block: CurrentBlock
+                    });
+                }
+            }
             resolve(errorLog);
+            
         });
     }
-
-}
 
 module.exports.Blockchain = Blockchain;   
